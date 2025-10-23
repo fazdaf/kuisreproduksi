@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kuis IPA: Sistem Reproduksi</title>
+  <style>
+    :root{
+      --card-bg: rgba(255,255,255,0.92);
+      --accent: #6c63ff;
+      --muted: #6b7280;
+    }
+    html,body{height:100%;margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial}
+    body{
+      display:flex;align-items:center;justify-content:center;padding:24px;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(108,99,255,0.12), transparent),
+                  radial-gradient(800px 400px at 90% 90%, rgba(99,255,226,0.08), transparent),
+                  linear-gradient(180deg,#f3f6ff 0%, #ffffff 100%);
+      background-attachment: fixed;
+      -webkit-font-smoothing:antialiased;
+    }
+    .container{width:100%;max-width:880px;}
+
+    header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+    .logo{width:64px;height:64px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#63ffd8);box-shadow:0 6px 18px rgba(99,102,241,0.18)}
+    .title{font-size:20px;font-weight:700;color:#0f172a}
+    .subtitle{font-size:13px;color:var(--muted)}
+
+    .card{background:var(--card-bg);border-radius:14px;padding:22px;box-shadow:0 8px 30px rgba(15,23,42,0.06)}
+
+    .slide{min-height:220px;display:none;flex-direction:column;gap:12px;}
+    .slide.active{display:flex;animation:fadeSlide .36s ease}
+    @keyframes fadeSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    .question{font-size:18px;font-weight:600;color:#0b1220}
+    .choices{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+    .choice{background:#fff;border:1px solid #eef2ff;padding:12px;border-radius:10px;cursor:pointer;outline:none;transition:transform .08s, box-shadow .12s}
+    .choice:hover{transform:translateY(-2px)}
+    .choice.selected{border-color:var(--accent);box-shadow:0 6px 18px rgba(108,99,255,0.12)}
+    .choice.correct{border-color:#16a34a;background:#ecfdf5}
+    .choice.wrong{border-color:#dc2626;background:#fff1f2}
+
+    .controls{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px}
+    .left-info{color:var(--muted);font-size:13px}
+    .btn{background:linear-gradient(90deg,var(--accent),#63ffd8);color:white;border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px rgba(99,102,241,0.18)}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(108,99,255,0.12);box-shadow:none}
+    .btn[disabled]{opacity:.46;cursor:not-allowed;transform:none}
+
+    .progress{height:8px;background:#eef2ff;border-radius:999px;overflow:hidden}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#63ffd8);width:0%}
+
+    .footer-small{margin-top:12px;color:var(--muted);font-size:13px}
+
+    /* result */
+    .result{display:none;flex-direction:column;gap:12px;align-items:center;text-align:center}
+    .result.show{display:flex}
+    .score{font-size:40px;font-weight:800;color:#0b1220}
+    .share{font-size:14px;color:var(--muted)}
+
+    /* responsive */
+    @media (max-width:560px){.question{font-size:16px}.logo{width:52px;height:52px}}  
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">🔬</div>
+      <div>
+        <div class="title">Kuis IPA: Sistem Reproduksi Manusia</div>
+        <div class="subtitle">Satu soal per slide — klik Next untuk melanjutkan</div>
+      </div>
+    </header>
+
+    <div class="card" id="quizCard" role="application" aria-labelledby="quizTitle">
+      <div id="slidesWrap">
+        <!-- Slides will be injected here -->
+      </div>
+
+      <div style="margin-top:14px">
+        <div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+        <div class="controls">
+          <div class="left-info"><span id="qIndex">0</span>/<span id="qTotal">0</span> • <span id="qHint">Pilih jawaban lalu Next</span></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn ghost" id="prevBtn">Prev</button>
+            <button class="btn" id="nextBtn">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-small">Catatan: materi cocok untuk SMP/MTs — review jawaban akan muncul di akhir.</div>
+    </div>
+
+    <template id="slideTemplate">
+      <div class="slide">
+        <div class="question"></div>
+        <div class="choices" role="list"></div>
+      </div>
+    </template>
+
+    <div class="card" style="margin-top:14px;display:none" id="resultCard">
+      <div class="result" id="resultBox">
+        <div class="score" id="finalScore">0/0</div>
+        <div class="share" id="finalText"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="retryBtn">Ulangi Kuis</button>
+          <button class="btn ghost" id="reviewBtn">Tinjau Jawaban</button>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:none" id="reviewArea"></div>
+    </div>
+  </div>
+
+  <script>
+    // Soal kuis (edit sesuka hati) — format: {q, choices:[], answer: index, explanation: ''}
+    const questions = [
+      {q: 'Organ reproduksi pria yang berfungsi menghasilkan sperma dan hormon testosteron adalah...', choices:['Vagina','Ovarium','Testis','Uterus'], answer:2, explanation:'Testis (tambang buah zakar) menghasilkan sperma dan hormon testosteron.'},
+      {q: 'Pada perempuan, tempat terjadinya pembuahan sel telur oleh sperma biasanya di...', choices:['Tuba Fallopi (saluran telur)','Ovarium','Vagina','Serviks'], answer:0, explanation:'Pembuahan umumnya terjadi di tuba fallopi.'},
+      {q: 'Proses pelepasan sel telur dari ovarium disebut...', choices:['Mentrual','Ovulasi','Fertiliasi','Implantasi'], answer:1, explanation:'Ovulasi adalah pelepasan sel telur matang dari ovarium.'},
+      {q: 'Zigot terbentuk setelah...', choices:['Sperma menempel di dinding rahim','Sel telur mengalami ovulasi','Sperma membuahi sel telur','Sel telur dibuahi oleh bakteri'], answer:2, explanation:'Zigot terbentuk ketika sperma membuahi sel telur.'},
+      {q: 'Struktur pada rahim yang menebal dan menerima embrio disebut...', choices:['Endometrium','Miometrium','Epididimis','Korpus luteum'], answer:0, explanation:'Endometrium adalah lapisan dalam rahim yang menerima embrio.'},
+      {q: 'Fungsi hormon progesteron pada siklus reproduksi wanita adalah...', choices:['Memicu ovulasi','Menebalkan dinding rahim untuk kehamilan','Menghasilkan sperma','Menghentikan menstruasi selamanya'], answer:1, explanation:'Progesteron membantu menebalkan endometrium untuk mempersiapkan kehamilan.'},
+      {q: 'Metode kontrasepsi yang mencegah sperma mencapai sel telur dengan memasang alat di dalam rahim disebut...', choices:['Pil KB','IUD (KB spiral)','Suntik KB','Kondom'], answer:1, explanation:'IUD (intrauterine device) dipasang di rahim untuk mencegah kehamilan.'},
+      {q: 'Manakah pernyataan yang benar mengenai sperma?', choices:['Hanya mengandung DNA, tanpa sitoplasma','Mengandung DNA dan sumber energi (mitokondria)','Berukuran sama dengan sel telur','Tidak bisa bergerak'], answer:1, explanation:'Sperma memiliki DNA dan mitokondria yang menyediakan energi untuk bergerak.'}
+    ];
+
+    // ---------- App State ----------
+    let current = 0;
+    const userAnswers = new Array(questions.length).fill(null);
+
+    // ---------- DOM refs ----------
+    const slidesWrap = document.getElementById('slidesWrap');
+    const slideTpl = document.getElementById('slideTemplate');
+    const qIndex = document.getElementById('qIndex');
+    const qTotal = document.getElementById('qTotal');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const progressBar = document.getElementById('progressBar');
+    const qHint = document.getElementById('qHint');
+    const resultCard = document.getElementById('resultCard');
+    const resultBox = document.getElementById('resultBox');
+    const resultArea = document.getElementById('reviewArea');
+    const retryBtn = document.getElementById('retryBtn');
+    const reviewBtn = document.getElementById('reviewBtn');
+
+    // ---------- Build slides ----------
+    function buildSlides(){
+      slidesWrap.innerHTML = '';
+      questions.forEach((item, idx)=>{
+        const node = slideTpl.content.cloneNode(true);
+        const slide = node.querySelector('.slide');
+        slide.dataset.index = idx;
+        slide.querySelector('.question').textContent = item.q;
+        const choicesWrap = slide.querySelector('.choices');
+        item.choices.forEach((c, i)=>{
+          const btn = document.createElement('button');
+          btn.className = 'choice';
+          btn.type = 'button';
+          btn.setAttribute('role','listitem');
+          btn.innerHTML = `<span style="font-weight:600;margin-right:10px">${String.fromCharCode(65+i)}.</span> ${c}`;
+          btn.addEventListener('click', ()=> selectChoice(idx, i, btn));
+          choicesWrap.appendChild(btn);
+        });
+        slidesWrap.appendChild(slide);
+      });
+      qTotal.textContent = questions.length;
+    }
+
+    function updateUI(){
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      slides.forEach(s=> s.classList.remove('active'));
+      const active = slides[current];
+      if(active) active.classList.add('active');
+      qIndex.textContent = current+1;
+      progressBar.style.width = `${((current)/questions.length)*100}%`;
+      prevBtn.disabled = current === 0;
+      nextBtn.textContent = current === questions.length-1 ? 'Selesai' : 'Next';
+
+      // show previously selected
+      const choices = active.querySelectorAll('.choice');
+      choices.forEach((c, i)=>{
+        c.classList.remove('selected','correct','wrong');
+        if(userAnswers[current] === i) c.classList.add('selected');
+      });
+      qHint.textContent = userAnswers[current] === null ? 'Pilih jawaban lalu Next' : 'Jawaban tersimpan — Anda bisa lanjutkan';
+    }
+
+    function selectChoice(qIdx, choiceIdx, btn){
+      userAnswers[qIdx] = choiceIdx;
+      // mark UI
+      const slide = document.querySelector(`.slide[data-index='${qIdx}']`);
+      slide.querySelectorAll('.choice').forEach((c, i)=>{
+        c.classList.toggle('selected', i===choiceIdx);
+      });
+    }
+
+    // Next / Prev logic
+    prevBtn.addEventListener('click', ()=>{
+      if(current>0){ current--; updateUI(); }
+    });
+
+    nextBtn.addEventListener('click', ()=>{
+      // if last, finish
+      if(current === questions.length-1){ finishQuiz(); return; }
+      // require answer before moving? We'll allow moving but encourage answer.
+      current++; updateUI();
+    });
+
+    // Finish and scoring
+    function finishQuiz(){
+      // compute score
+      let correct=0;
+      questions.forEach((q,i)=>{ if(userAnswers[i]===q.answer) correct++; });
+      // show result
+      resultCard.style.display = 'block';
+      resultCard.scrollIntoView({behavior:'smooth',block:'center'});
+      resultBox.classList.add('show');
+      document.getElementById('finalScore').textContent = `${correct}/${questions.length}`;
+      document.getElementById('finalText').textContent = `Skor Anda ${Math.round((correct/questions.length)*100)}% — ${correct} jawaban benar dari ${questions.length}.`;
+      // prepare review
+      resultArea.innerHTML = '';
+      questions.forEach((q,i)=>{
+        const el = document.createElement('div');
+        el.style.padding = '12px';
+        el.style.borderTop = '1px solid #f1f5f9';
+        el.innerHTML = `<div style="font-weight:700">${i+1}. ${q.q}</div>
+                        <div style="margin-top:8px">Jawaban Anda: <strong>${userAnswers[i]===null? 'Tidak menjawab' : q.choices[userAnswers[i]]}</strong></div>
+                        <div>Jawaban benar: <strong>${q.choices[q.answer]}</strong></div>
+                        <div style="margin-top:6px;color:var(--muted)">${q.explanation || ''}</div>`;
+        resultArea.appendChild(el);
+      });
+    }
+
+    reviewBtn.addEventListener('click', ()=>{
+      resultArea.style.display = resultArea.style.display === 'block' ? 'none' : 'block';
+      if(resultArea.style.display === 'block') reviewBtn.textContent = 'Tutup Tinjauan'; else reviewBtn.textContent = 'Tinjau Jawaban';
+    });
+
+    retryBtn.addEventListener('click', ()=>{
+      // reset
+      for(let i=0;i<userAnswers.length;i++) userAnswers[i]=null;
+      current = 0;
+      resultCard.style.display = 'none';
+      resultArea.style.display = 'none';
+      buildSlides();
+      updateUI();
+    });
+
+    // keyboard support
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowRight') nextBtn.click();
+      if(e.key === 'ArrowLeft') prevBtn.click();
+      if(e.key >= '1' && e.key <= '4'){
+        // map 1-4 to choices on current slide
+        const slide = document.querySelector(`.slide[data-index='${current}']`);
+        const choices = slide.querySelectorAll('.choice');
+        const idx = Number(e.key)-1;
+        if(choices[idx]) choices[idx].click();
+      }
+    });
+
+    // init
+    buildSlides();
+    updateUI();
+  </script>
+</body>
+</html>
